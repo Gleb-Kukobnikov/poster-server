@@ -1,0 +1,1 @@
+export { withTimestamp } from './withTimestamp';
