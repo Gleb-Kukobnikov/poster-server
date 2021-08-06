@@ -1,5 +1,5 @@
 import argon2 from 'argon2';
-import {Arg, Ctx, Mutation, Resolver} from 'type-graphql';
+import {Arg, Ctx, Mutation, Query, Resolver} from 'type-graphql';
 import {UsernamePasswordInput, UserResponse} from "./resolverTypes";
 import {EMContext} from "../types";
 import {User} from "../entities";
@@ -8,10 +8,21 @@ import {POSTGRES_ERRORS} from "../constants";
 @Resolver()
 export class UserResolver {
 
+    @Query(() => User, { nullable: true })
+    async me(
+        @Ctx() { em, req }: EMContext
+    ) {
+        if (!req.session.userId) return null;
+
+        const user = await em.findOne(User, { id: req.session.userId });
+
+        return { user };
+    }
+
     @Mutation(() => UserResponse)
     async register(
         @Arg('options') { username, password }: UsernamePasswordInput,
-        @Ctx() { em }: EMContext
+        @Ctx() { req, em }: EMContext
     ): Promise<UserResponse> {
         if (username.length <= 2) {
             return {
@@ -47,13 +58,15 @@ export class UserResolver {
             }
         }
 
+        req.session.userId = user.id;
+
         return { user };
     }
 
     @Mutation(() => UserResponse)
     async login(
         @Arg('options') { username, password }: UsernamePasswordInput,
-        @Ctx() { em }: EMContext
+        @Ctx() { em, req }: EMContext
     ): Promise<UserResponse> {
         const user = await em.findOne(User, { username });
 
@@ -76,6 +89,8 @@ export class UserResolver {
                 }],
             };
         }
+
+        req.session.userId = user.id;
 
         return { user };
     }
